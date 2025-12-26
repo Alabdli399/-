@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>إحصائيات الكنج والبعرور</title>
+
+<style>
+body{font-family:Tahoma;background:#020617;color:#fff;padding:20px}
+h1,h2{text-align:center}
+input,select,button{width:100%;margin:6px 0;padding:10px;font-size:15px}
+button{background:#22c55e;border:none;cursor:pointer}
+button.danger{background:#ef4444}
+button.small{width:auto;padding:6px 12px}
+.card{background:#0f172a;padding:15px;border-radius:10px;margin-top:15px}
+.row{display:flex;gap:10px}
+.col{flex:1}
+.item{border-bottom:1px solid #334155;padding:8px 0}
+.small{font-size:13px;color:#94a3b8}
+.king{color:#facc15}
+.bad{color:#fb7185}
+.win{color:#4ade80;font-weight:bold}
+</style>
+</head>
+<body>
+
+<h1>👑🤡 إحصائيات الكنج والبعرور</h1>
+
+<!-- إضافة دوري -->
+<div class="card">
+<h2>➕ إضافة دوري</h2>
+<select id="type" onchange="switchMode()">
+  <option value="individual">فردي</option>
+  <option value="team">ثنائي</option>
+</select>
+
+<div id="individualBox">
+  <div id="individuals"></div>
+  <button class="small" onclick="addIndividual()">➕ لاعب</button>
+</div>
+
+<div id="teamBox" style="display:none">
+  <div id="teams"></div>
+  <button class="small" onclick="addTeam()">➕ فريق</button>
+</div>
+
+<button onclick="saveCompetition()">💾 حفظ الدوري</button>
+</div>
+
+<!-- خيارات الإحصائيات -->
+<div class="card">
+<h2>⚙️ خيارات الإحصائيات</h2>
+<label><input type="checkbox" id="showTotal" checked> إظهار المشاركات</label><br>
+<label><input type="checkbox" id="showKing" checked> إظهار 👑 الكنج</label><br>
+<label><input type="checkbox" id="showBad" checked> إظهار 🤡 البعرور</label><br>
+<label>ترتيب حسب:
+  <select id="sortBy">
+    <option value="none">بدون ترتيب</option>
+    <option value="total">الأكثر مشاركات</option>
+    <option value="king">الأكثر كنج</option>
+    <option value="bad">الأكثر بعرور</option>
+  </select>
+</label><br>
+<label>تاريخ البداية: <input type="date" id="fromDate"></label>
+<label>تاريخ النهاية: <input type="date" id="toDate"></label>
+<label>نوع الدوري:
+  <select id="filterType">
+    <option value="all">عام</option>
+    <option value="individual">فردي</option>
+    <option value="team">ثنائي</option>
+  </select>
+</label>
+</div>
+
+<!-- إحصائيات الفردي -->
+<div class="card">
+<h2>📊 إحصائيات الفردي</h2>
+<button id="btnIndividual" onclick="toggleStats('individual')">عرض</button>
+<div id="statsIndividual"></div>
+</div>
+
+<!-- إحصائيات الثنائي -->
+<div class="card">
+<h2>📊 إحصائيات الثنائي</h2>
+<button id="btnTeam" onclick="toggleStats('team')">عرض</button>
+<div id="statsTeam"></div>
+</div>
+
+<!-- الإحصائيات العامة -->
+<div class="card">
+<h2>📊 الإحصائيات العامة</h2>
+<button id="btnAll" onclick="toggleStats('all')">عرض</button>
+<div id="stats"></div>
+</div>
+
+<!-- المقارنة -->
+<div class="card">
+<h2>🆚 مقارنة بين لاعبين</h2>
+<select id="compareType">
+  <option value="all">عام</option>
+  <option value="individual">فردي</option>
+  <option value="team">ثنائي</option>
+</select>
+
+<div class="row">
+  <select id="playerA" class="col"></select>
+  <select id="playerB" class="col"></select>
+</div>
+
+<label>اختيار عنصر المقارنة:
+  <select id="compareElement">
+    <option value="total">المشاركات</option>
+    <option value="king">👑 الكنج</option>
+    <option value="bad">🤡 البعرور</option>
+  </select>
+</label>
+
+<button id="btnCompare" onclick="toggleCompare()">مقارنة</button>
+<div id="compareResult"></div>
+</div>
+
+<!-- تصفير -->
+<div class="card">
+<button class="danger" onclick="resetAll()">🗑️ تصفير كل البيانات</button>
+</div>
+
+<script>
+let competitions = JSON.parse(localStorage.getItem("competitions") || "[]");
+
+function switchMode(){
+  individualBox.style.display = type.value==="individual"?"block":"none";
+  teamBox.style.display = type.value==="team"?"block":"none";
+}
+
+function addIndividual(){
+  individuals.innerHTML+=`<div class="row item">
+    <input placeholder="اسم اللاعب">
+    <button class="danger small" onclick="this.parentElement.remove()">✖</button>
+  </div>`;
+}
+
+function addTeam(){
+  teams.innerHTML+=`<div class="row item">
+    <input placeholder="الاسم الأول">
+    <input placeholder="الاسم الثاني">
+    <button class="danger small" onclick="this.parentElement.remove()">✖</button>
+  </div>`;
+}
+
+function saveCompetition(){
+  let players=[];
+  const fromDate = document.getElementById("fromDate").value;
+  const toDate = document.getElementById("toDate").value;
+
+  if(type.value==="individual"){
+    document.querySelectorAll("#individuals input").forEach(i=>{
+      if(i.value.trim()) players.push([i.value.trim()]);
+    });
+  }else{
+    document.querySelectorAll("#teams .row").forEach(r=>{
+      const a=r.children[0].value.trim();
+      const b=r.children[1].value.trim();
+      if(a&&b) players.push([a,b]);
+    });
+  }
+  if(players.length<2) return alert("أدخل ترتيب كامل");
+
+  competitions.push({players,date:new Date().toISOString()});
+  localStorage.setItem("competitions",JSON.stringify(competitions));
+  individuals.innerHTML=""; teams.innerHTML="";
+  fillPlayers();
+}
+
+function buildStats(filter=null){
+  let stats={};
+  const fromD = new Date(document.getElementById("fromDate").value);
+  const toD = new Date(document.getElementById("toDate").value);
+  competitions.forEach(c=>{
+    const isInd=c.players.every(p=>p.length===1);
+    const type=isInd?"individual":"team";
+    if(filter && filter!=="all" && filter!==type) return;
+
+    const cDate = new Date(c.date);
+    if(document.getElementById("fromDate").value && cDate<fromD) return;
+    if(document.getElementById("toDate").value && cDate>toD) return;
+
+    const first=c.players[0];
+    const last=c.players[c.players.length-1];
+    c.players.forEach(team=>{
+      team.forEach(n=>{
+        if(!stats[n]) stats[n]={total:0,king:0,bad:0};
+        stats[n].total++;
+      });
+    });
+    first.forEach(n=>stats[n].king++);
+    last.forEach(n=>stats[n].bad++);
+  });
+  return stats;
+}
+
+function renderStats(stats,box){
+  const showTotal = document.getElementById("showTotal").checked;
+  const showKing = document.getElementById("showKing").checked;
+  const showBad = document.getElementById("showBad").checked;
+  const sortBy = document.getElementById("sortBy").value;
+
+  let entries = Object.entries(stats);
+  if(sortBy!=="none"){
+    entries.sort((a,b)=>b[1][sortBy]-a[1][sortBy]);
+  }
+
+  box.innerHTML="";
+  if(!entries.length){box.innerHTML="<div class='small'>لا توجد بيانات</div>"; return;}
+  entries.forEach(([n,s])=>{
+    box.innerHTML+=`<div class="item"><b>${n}</b><br>`+
+      (showTotal?`المشاركات: ${s.total}<br>`:'')+
+      (showKing?`👑 ${s.king}<br>`:'')+
+      (showBad?`🤡 ${s.bad}`:'')+
+    `</div>`;
+  });
+}
+
+function toggleStats(type){
+  let box,btn;
+  if(type==="individual"){box=statsIndividual;btn=btnIndividual}
+  else if(type==="team"){box=statsTeam;btn=btnTeam}
+  else{box=stats;btn=btnAll}
+
+  if(box.innerHTML){box.innerHTML="";btn.textContent="عرض";return;}
+  renderStats(buildStats(type),box);
+  btn.textContent="إخفاء";
+}
+
+function fillPlayers(){
+  const stats=buildStats("all");
+  [playerA,playerB].forEach(s=>{
+    s.innerHTML="";
+    Object.keys(stats).forEach(n=>s.innerHTML+=`<option>${n}</option>`);
+  });
+}
+
+function toggleCompare(){
+  if(compareResult.innerHTML){compareResult.innerHTML="";btnCompare.textContent="مقارنة";return;}
+  const type = compareType.value;
+  const a = playerA.value;
+  const b = playerB.value;
+  const element = document.getElementById("compareElement").value;
+  if(!a||!b||a===b) return alert("اختر لاعبين مختلفين");
+
+  const stats = buildStats(type);
+  const A = stats[a] || {total:0,king:0,bad:0};
+  const B = stats[b] || {total:0,king:0,bad:0};
+
+  compareResult.innerHTML = `<div class="row">
+    <div class="col item"><b>${a}</b><br>${A[element]}</div>
+    <div class="col item"><b>${b}</b><br>${B[element]}</div>
+  </div>`;
+  btnCompare.textContent="إخفاء";
+}
+
+function resetAll(){
+  if(confirm("سيتم حذف كل البيانات")){localStorage.clear();competitions=[];location.reload();}
+}
+
+addIndividual();addIndividual();
+fillPlayers();
+</script>
+
+</body>
+</html>
